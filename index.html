@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Quitutes Baldin - Gestão Profissional</title>
+    
+    <!-- Ícone da Aba (Favicon) - Garanta que o ficheiro appicon.png esteja no seu GitHub -->
+    <link rel="icon" type="image/png" href="appicon.png">
+    <link rel="apple-touch-icon" href="appicon.png">
 
-        <link rel="icon" type="image/png" href="appicon.png">
-        <link rel="apple-touch-icon" href="appicon.png">
     <!-- Bibliotecas de Renderização -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -14,7 +16,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Firebase SDK (Versão Compat - Estabilidade para GitHub Pages) -->
+    <!-- Firebase SDK Compat (A versão mais estável para ficheiro único no GitHub) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -28,15 +30,12 @@
         
         @media print {
             body { background: white !important; }
-            .print-hidden, header, nav, button, .no-print { display: none !important; }
+            .print-hidden, header, nav, button { display: none !important; }
             .print-area { 
                 display: block !important; 
                 position: absolute; 
-                top: 0; 
-                left: 0; 
-                width: 100%; 
-                padding: 20px;
-                background: white !important;
+                top: 0; left: 0; width: 100%; 
+                padding: 20px; background: white !important; 
             }
             .modal-content { box-shadow: none !important; border: none !important; width: 100% !important; padding: 0 !important; background: white !important; }
             * { color: black !important; -webkit-print-color-adjust: exact; }
@@ -49,10 +48,8 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // =========================================================
-        // 1. CONFIGURAÇÃO DO FIREBASE (ATUALIZADO)
-        // =========================================================
-        let firebaseConfig = {
+        // --- CONFIGURAÇÃO OFICIAL DO GABRIEL ---
+        const firebaseConfig = {
             apiKey: "AIzaSyADAJsA21bsGbgEYU4moNgPelc0oJzkduU",
             authDomain: "quitutes-1dce1.firebaseapp.com",
             projectId: "quitutes-1dce1",
@@ -60,15 +57,11 @@
             messagingSenderId: "961436368708",
             appId: "1:961436368708:web:59d5ae260b1dbcc5d2e111"
         };
-        // =========================================================
 
-        const isInternalEnv = typeof __firebase_config !== 'undefined';
-        if (isInternalEnv) { firebaseConfig = JSON.parse(__firebase_config); }
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'quitutes-baldin-web';
+        const appId = 'quitutes-baldin-web';
         const NOTIFICATION_SOUND_URL = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
 
-        // Inicialização do Firebase
+        // Inicialização Global do Firebase
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
@@ -84,7 +77,15 @@
         const Logo = () => (
             <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white rounded-full overflow-hidden border-2 border-white/20 shadow-sm flex items-center justify-center">
-                    <img src="appicon.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerHTML = '<span class="text-2xl">🧺</span>'; }} />
+                    <img 
+                        src="appicon.png" 
+                        alt="Logo" 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => { 
+                            e.target.style.display = 'none'; 
+                            e.target.parentNode.innerHTML = '<span class="text-2xl" title="Imagem não encontrada">🧺</span>'; 
+                        }} 
+                    />
                 </div>
                 <div>
                     <h1 className="text-lg font-black text-white uppercase leading-none">Quitutes Baldin</h1>
@@ -102,7 +103,6 @@
             const [user, setUser] = useState(null);
             const [activeTab, setActiveTab] = useState('mesas');
             const [isAudioEnabled, setIsAudioEnabled] = useState(false);
-            const [authError, setAuthError] = useState(null);
             const [permissionError, setPermissionError] = useState(false);
             const prevReadyCountRef = useRef(0);
 
@@ -124,73 +124,41 @@
             const [tempClientName, setTempClientName] = useState("");
             const [pendingProduct, setPendingProduct] = useState(null);
 
-            // 1. Efeito de Autenticação
+            // 1. Autenticação Automática
             useEffect(() => {
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await auth.signInWithCustomToken(__initial_auth_token);
-                        } else {
-                            await auth.signInAnonymously();
-                        }
-                    } catch (err) {
-                        setAuthError(err.code);
-                    }
-                };
-                initAuth();
-                const unsubscribe = auth.onAuthStateChanged((u) => {
-                    setUser(u);
-                });
-                return () => unsubscribe();
+                auth.signInAnonymously().catch(err => console.error("Erro Auth:", err));
+                return auth.onAuthStateChanged(setUser);
             }, []);
 
-            // 2. Efeito de Sincronização (Guardado por User)
+            // 2. Sincronização Realtime
             useEffect(() => {
                 if (!user) return;
 
                 const handleError = (err) => {
-                    console.error("Firestore Error:", err);
-                    if (err.code === 'permission-denied') {
-                        setPermissionError(true);
-                    }
+                    console.error("Erro Firestore:", err);
+                    if (err.code === 'permission-denied') setPermissionError(true);
                 };
 
-                const unsubCaixa = db.doc(`artifacts/${appId}/public/data/settings/caixa`).onSnapshot(snap => {
-                    if (snap.exists) setCaixaStatus(snap.data());
-                }, handleError);
-
-                const unsubMesas = db.collection(`artifacts/${appId}/public/data/tables`).onSnapshot(snap => {
-                    setMesas(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => String(a.numero).localeCompare(String(b.numero))));
-                }, handleError);
-
-                const unsubMenu = db.collection(`artifacts/${appId}/public/data/menu`).onSnapshot(snap => {
-                    setCardapio(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                }, handleError);
-
+                const unsubCaixa = db.doc(`artifacts/${appId}/public/data/settings/caixa`).onSnapshot(snap => snap.exists && setCaixaStatus(snap.data()), handleError);
+                const unsubMesas = db.collection(`artifacts/${appId}/public/data/tables`).onSnapshot(snap => setMesas(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => String(a.numero).localeCompare(String(b.numero)))), handleError);
+                const unsubMenu = db.collection(`artifacts/${appId}/public/data/menu`).onSnapshot(snap => setCardapio(snap.docs.map(d => ({ id: d.id, ...d.data() }))), handleError);
                 const unsubOrders = db.collection(`artifacts/${appId}/public/data/orders`).onSnapshot(snap => {
                     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                     const count = docs.reduce((acc, c) => acc + (c.itens?.filter(i => i.pronto).length || 0), 0);
-                    if (count > prevReadyCountRef.current && isAudioEnabled) {
-                        new Audio(NOTIFICATION_SOUND_URL).play().catch(()=>{});
-                    }
+                    if (count > prevReadyCountRef.current && isAudioEnabled) { new Audio(NOTIFICATION_SOUND_URL).play().catch(()=>{}); }
                     prevReadyCountRef.current = count;
                     setComandas(docs);
                 }, handleError);
+                const unsubHistory = db.collection(`artifacts/${appId}/public/data/history`).onSnapshot(snap => setHistorico(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0))), handleError);
 
-                const unsubHistory = db.collection(`artifacts/${appId}/public/data/history`).onSnapshot(snap => {
-                    setHistorico(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0)));
-                }, handleError);
-
-                return () => {
-                    unsubCaixa(); unsubMesas(); unsubMenu(); unsubOrders(); unsubHistory();
-                };
+                return () => { unsubCaixa(); unsubMesas(); unsubMenu(); unsubOrders(); unsubHistory(); };
             }, [user, isAudioEnabled]);
 
-            // Funções de UI
+            // Funções Computadas
             const isCaixaAberto = caixaStatus.status === 'Aberto';
             const totalDia = useMemo(() => historico.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0), [historico]);
             const comandaAtual = useMemo(() => selectedMesa ? comandas.find(c => c.mesaId === selectedMesa.id) : null, [selectedMesa, comandas]);
-            const totalComandaAtual = useMemo(() => comandaAtual?.itens?.reduce((acc, curr) => acc + (Number(curr.preco) * Number(curr.quantidade)), 0) || 0, [comandaAtual]);
+            const totalComandaAtual = useMemo(() => comandaAtual?.itens?.reduce((acc, curr) => acc + (Number(curr.preco) * Number(curr.quantidade || curr.qty || 0)), 0) || 0, [comandaAtual]);
             const hasReadyItems = useMemo(() => comandas.some(c => c.itens?.some(i => i.pronto)), [comandas]);
 
             const closureSummary = useMemo(() => {
@@ -198,12 +166,12 @@
                 historico.forEach(v => {
                     const val = Number(v.total) || 0; s.total += val;
                     const m = v.metodo || 'Dinheiro'; if (s.hasOwnProperty(m)) s[m] += val;
-                    v.itens?.forEach(i => { const n = i.nome || i.name || "Item"; s.items[n] = (s.items[n] || 0) + (Number(i.quantidade || i.qty) || 0); });
+                    v.itens?.forEach(i => { const n = i.nome || i.name || "Item"; s.items[n] = (s.items[n] || 0) + (Number(i.quantidade || i.qty || 0)); });
                 });
                 return s;
             }, [historico]);
 
-            // Lógica de Venda e Caixa
+            // Handlers
             const handleAbrirCaixa = () => db.doc(`artifacts/${appId}/public/data/settings/caixa`).set({ status: 'Aberto', timestamp: Date.now() });
 
             const handleFecharCaixaFinal = async () => {
@@ -225,7 +193,7 @@
                     const idx = existing.itens.findIndex(i => i.produtoId === p.id);
                     let newItens = [...existing.itens];
                     if (idx > -1) {
-                        newItens[idx].quantidade += dlt;
+                        newItens[idx].quantidade = (newItens[idx].quantidade || newItens[idx].qty || 0) + dlt;
                         if (newItens[idx].quantidade <= 0) newItens.splice(idx, 1);
                     } else if (dlt > 0) {
                         newItens.push({ produtoId: p.id, nome: p.nome, preco: p.preco, quantidade: 1, pronto: false });
@@ -273,37 +241,18 @@
                     text = `*** QUITUTES BALDIN - FECHO ***\nDATA: ${new Date().toLocaleDateString()}\nTOTAL: R$ ${closureSummary.total.toFixed(2)}\nVENDAS: ${closureSummary.count}\n---\nPIX: R$ ${closureSummary.PIX.toFixed(2)}\nCARTÃO: R$ ${closureSummary.Cartão.toFixed(2)}\nDINHEIRO: R$ ${closureSummary.Dinheiro.toFixed(2)}`;
                 }
                 const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
-                alert("Copiado!");
+                alert("Copiado com sucesso!");
             };
 
-            // --- TELAS DE ERRO ---
-            if (authError === 'auth/configuration-not-found') {
-                return (
-                    <div className="h-screen flex items-center justify-center p-8 bg-red-800 text-white text-center">
-                        <div>
-                            <Icon name="alert-circle" size={60} className="mx-auto mb-6" />
-                            <h2 className="text-2xl font-black mb-4 uppercase">Ativar Login Anônimo</h2>
-                            <p className="text-sm opacity-90 leading-relaxed mb-8">O Firebase recusou a conexão. Precisas de ativar o <b>Login Anônimo</b> no menu Authentication do teu console do Firebase.</p>
-                            <button onClick={() => window.location.reload()} className="bg-white text-red-800 px-8 py-4 rounded-2xl font-bold uppercase text-xs">Tentar Recarregar</button>
-                        </div>
-                    </div>
-                );
-            }
-
+            // Erro de Permissão do Firebase
             if (permissionError) {
                 return (
-                    <div className="h-screen flex items-center justify-center p-8 bg-orange-700 text-white text-center font-sans">
+                    <div className="h-screen flex items-center justify-center p-8 bg-orange-700 text-white text-center">
                         <div className="max-w-md">
-                            <Icon name="shield-alert" size={60} className="mx-auto mb-6" />
-                            <h2 className="text-2xl font-black mb-4 uppercase">Erro de Permissão</h2>
-                            <p className="text-sm opacity-90 leading-relaxed mb-8">
-                                O sistema não consegue ler os dados. <br/><br/>
-                                1. Vai ao console do Firebase.<br/>
-                                2. Menu <b>Firestore Database</b>.<br/>
-                                3. Aba <b>Rules (Regras)</b>.<br/>
-                                4. Garanta que as regras permitem acesso (ex: Modo de Teste).
-                            </p>
-                            <button onClick={() => window.location.reload()} className="bg-white text-orange-700 px-8 py-4 rounded-2xl font-bold uppercase text-xs">Recarregar Sistema</button>
+                            <Icon name="shield-alert" size={64} className="mx-auto mb-6" />
+                            <h2 className="text-2xl font-black mb-4 uppercase">Banco de Dados Offline</h2>
+                            <p className="text-sm opacity-90 leading-relaxed mb-8 text-left">O Google diz que o banco de dados ainda não foi criado ou as regras estão bloqueadas.</p>
+                            <button onClick={() => window.location.reload()} className="bg-white text-orange-700 px-8 py-4 rounded-2xl font-bold uppercase text-xs">Recarregar</button>
                         </div>
                     </div>
                 );
@@ -313,13 +262,14 @@
                 <div className="h-screen flex items-center justify-center">
                     <div className="text-center animate-pulse">
                         <div className="text-5xl mb-4">🧺</div>
-                        <p className="font-bold text-[#8B5A2B] text-xs uppercase tracking-widest">Quitutes Baldin...</p>
+                        <p className="font-bold text-[#8B5A2B] text-xs uppercase tracking-widest uppercase">A Conectar...</p>
                     </div>
                 </div>
             );
 
             return (
                 <div className="min-h-screen bg-[#FCF8F3] pb-24 text-[#4A3728]">
+                    {/* TOPBAR */}
                     <header className="bg-[#8B5A2B] text-white p-6 shadow-xl sticky top-0 z-50 print-hidden">
                         <div className="max-w-4xl mx-auto flex justify-between items-center">
                             <Logo />
@@ -333,6 +283,7 @@
                     </header>
 
                     <main className="max-w-4xl mx-auto p-4 animate-in fade-in duration-500">
+                        {/* VIEW: SALÃO */}
                         {activeTab === 'mesas' && !selectedMesa && (
                             <div className="space-y-6 print-hidden">
                                 <div className="flex justify-between items-center">
@@ -346,18 +297,22 @@
                                     </div>
                                 )}
                                 <div className={`grid grid-cols-3 sm:grid-cols-4 gap-4 ${!isCaixaAberto ? 'opacity-40 pointer-events-none' : ''}`}>
-                                    {mesas.map(m => (
-                                        <div key={m.id} onClick={() => setSelectedMesa(m)} className={`relative aspect-square rounded-[32px] border-2 flex flex-col items-center justify-center transition-all cursor-pointer shadow-sm active:scale-90 px-2 text-center ${m.status === 'Ocupada' ? 'bg-[#FDF2E9] border-[#E67E22] text-[#E67E22]' : 'bg-white border-[#EADCCB] text-[#8B5A2B]'}`}>
-                                            {comandas.find(c => c.mesaId === m.id)?.itens?.some(i => i.pronto) && <span className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white"></span>}
-                                            <span className="text-[8px] font-black opacity-30 uppercase mb-1">Mesa</span>
-                                            <span className="text-3xl font-black">{String(m.numero)}</span>
-                                            {m.status === 'Ocupada' && <span className="text-[9px] font-bold mt-1 uppercase truncate w-full">{String(m.cliente || "Consumo")}</span>}
-                                        </div>
-                                    ))}
+                                    {mesas.map(m => {
+                                        const comanda = comandas.find(c => c.mesaId === m.id);
+                                        return (
+                                            <div key={m.id} onClick={() => setSelectedMesa(m)} className={`relative aspect-square rounded-[32px] border-2 flex flex-col items-center justify-center transition-all cursor-pointer shadow-sm active:scale-90 px-2 text-center ${m.status === 'Ocupada' ? 'bg-[#FDF2E9] border-[#E67E22] text-[#E67E22]' : 'bg-white border-[#EADCCB] text-[#8B5A2B]'}`}>
+                                                {comanda?.itens?.some(i => i.pronto) && <span className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white"></span>}
+                                                <span className="text-[8px] font-black opacity-30 uppercase mb-1">Mesa</span>
+                                                <span className="text-3xl font-black">{String(m.numero)}</span>
+                                                {m.status === 'Ocupada' && <span className="text-[9px] font-bold mt-1 uppercase truncate w-full">{String(m.cliente || "Consumo")}</span>}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
 
+                        {/* VIEW: DETALHES MESA */}
                         {selectedMesa && (
                             <div className="space-y-6 print-hidden">
                                 <button onClick={() => setSelectedMesa(null)} className="flex items-center gap-2 text-[#8B5A2B] font-black text-xs uppercase"><Icon name="chevron-left" size={18} /> Voltar</button>
@@ -374,11 +329,11 @@
                                             <div key={idx} className="flex justify-between items-center p-4 rounded-3xl bg-[#FCF8F3]">
                                                 <div className="flex flex-col flex-1">
                                                     <p className="font-bold text-sm">{String(item.nome || item.name)}</p>
-                                                    <p className="text-xs text-orange-600 font-bold">R$ {(item.preco * item.quantidade).toFixed(2)}</p>
+                                                    <p className="text-xs text-orange-600 font-bold">R$ {(item.preco * (item.quantidade || item.qty || 0)).toFixed(2)}</p>
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <button onClick={() => handleItemAction({ id: item.produtoId }, -1)} className="bg-[#8B5A2B] text-white w-8 h-8 rounded-xl flex items-center justify-center font-bold shadow-md">-</button>
-                                                    <span className="font-black text-sm w-4 text-center">{item.quantidade}</span>
+                                                    <span className="font-black text-sm w-4 text-center">{(item.quantidade || item.qty || 0)}</span>
                                                     <button onClick={() => handleItemAction({ id: item.produtoId }, 1)} className="bg-[#4A773C] text-white w-8 h-8 rounded-xl flex items-center justify-center font-bold shadow-md">+</button>
                                                 </div>
                                             </div>
@@ -408,6 +363,7 @@
                             </div>
                         )}
 
+                        {/* VIEW: COZINHA */}
                         {activeTab === 'cozinha' && (
                             <div className="space-y-6 print-hidden">
                                 <h2 className="text-lg font-black text-[#8B5A2B] uppercase px-2 tracking-widest">Cozinha</h2>
@@ -423,7 +379,7 @@
                                             <div className="p-4 space-y-3">
                                                 {pending.map((i, idx) => (
                                                     <div key={idx} className="flex justify-between items-center bg-[#FCF8F3] p-4 rounded-2xl border border-orange-50">
-                                                        <span className="font-bold text-sm">{i.qty || i.quantidade}x {String(i.nome || i.name)}</span>
+                                                        <span className="font-bold text-sm">{(i.quantidade || i.qty || 0)}x {String(i.nome || i.name)}</span>
                                                         <button onClick={() => db.doc(`artifacts/${appId}/public/data/orders/${c.id}`).update({ itens: c.itens.map(item => (item.produtoId === i.produtoId) ? {...item, pronto: true} : item) })} className="bg-white text-[#4A773C] border-2 border-[#4A773C] px-5 py-2 rounded-full font-black text-[10px] uppercase active:bg-[#4A773C] active:text-white transition-all">Pronto</button>
                                                     </div>
                                                 ))}
@@ -443,7 +399,7 @@
                                             <h2 className="text-5xl font-black tracking-tighter">R$ {totalDia.toFixed(2)}</h2>
                                             <Icon name="unlock" size={180} className="absolute right-[-20px] bottom-[-20px] opacity-10" />
                                         </div>
-                                        <button onClick={() => setShowClosureModal(true)} className="bg-white w-full p-8 rounded-[40px] border-2 border-[#8B5A2B] flex flex-col items-center gap-3 shadow-sm active:scale-95 transition-all">
+                                        <button onClick={() => setShowClosureModal(true)} className="bg-white w-full p-8 rounded-[40px] border-2 border-[#8B5A2B] flex flex-col items-center gap-3 active:scale-95 transition-all shadow-sm">
                                             <Icon name="file-text" size={32} className="text-[#8B5A2B]" />
                                             <span className="text-[12px] font-black text-[#8B5A2B] uppercase">Relatório e Fechar Dia</span>
                                         </button>
@@ -455,9 +411,9 @@
                                         <button onClick={handleAbrirCaixa} className="bg-white text-[#8B5A2B] px-12 py-5 rounded-3xl font-black uppercase shadow-xl hover:bg-[#F5E6D3] active:scale-95 transition-all">Abrir Caixa Agora</button>
                                     </div>
                                 )}
-                                <h3 className="font-black text-[#8B5A2B] uppercase px-2 tracking-widest">Vendas de Hoje</h3>
+                                <h3 className="font-black text-[#8B5A2B] uppercase px-2 tracking-widest">Histórico de Hoje</h3>
                                 {historico.map(v => (
-                                    <div key={v.id} className="bg-white p-5 rounded-3xl flex justify-between items-center shadow-sm border border-gray-50 mb-2">
+                                    <div key={v.id} className="bg-white p-5 rounded-3xl flex justify-between items-center shadow-sm border border-gray-100 mb-2">
                                         <div className="flex items-center gap-4">
                                             <div className="bg-green-50 p-3 rounded-2xl"><Icon name="check-circle-2" size={18} className="text-[#4A773C]"/></div>
                                             <div>
@@ -514,7 +470,7 @@
                         </button>
                     </nav>
 
-                    {/* MODAIS (Consolidados) */}
+                    {/* MODAIS */}
                     {showNameModal && (
                         <div className="fixed inset-0 bg-[#4A3728]/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in zoom-in duration-300">
                             <div className="bg-white w-full max-w-sm rounded-[48px] p-10 border-2 border-[#8B5A2B] shadow-2xl">
@@ -553,8 +509,8 @@
                                 <div className="border-t border-gray-200 my-4"></div>
                                 {receiptData.itens?.map((i, idx) => (
                                     <div key={idx} className="flex justify-between mb-1">
-                                        <span>{i.qty || i.quantidade}x {String(i.nome || i.name)}</span>
-                                        <span>R$ {(Number(i.preco) * Number(i.qty || i.quantidade)).toFixed(2)}</span>
+                                        <span>{(i.quantidade || i.qty || 0)}x {String(i.nome || i.name)}</span>
+                                        <span>R$ {(Number(i.preco) * Number(i.quantidade || i.qty || 0)).toFixed(2)}</span>
                                     </div>
                                 ))}
                                 <div className="border-t border-gray-200 pt-2 mt-4 flex justify-between font-bold text-sm"><span>TOTAL</span><span>R$ {Number(receiptData.total).toFixed(2)}</span></div>
@@ -563,7 +519,7 @@
                            </div>
                            <div className="space-y-4 print-hidden">
                               <button onClick={handlePrint} className="w-full bg-[#8B5A2B] text-white py-5 rounded-3xl font-black flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"><Icon name="printer" size={20} /> IMPRIMIR TICKET</button>
-                              <button onClick={() => copyToClipboard('receipt')} className="w-full border-2 border-[#8B5A2B] text-[#8B5A2B] py-5 rounded-3xl font-black flex items-center justify-center gap-2"><Icon name="copy" size={20} /> COPIAR RESUMO</button>
+                              <button onClick={() => copyToClipboard('receipt')} className="w-full border-2 border-[#8B5A2B] text-[#8B5A2B] py-5 rounded-3xl font-black flex items-center justify-center gap-2 uppercase text-xs"><Icon name="copy" size={20} /> Copiar WhatsApp</button>
                               <button onClick={() => setReceiptData(null)} className="w-full text-gray-400 font-bold text-xs uppercase tracking-widest">FECHAR</button>
                            </div>
                         </div>
@@ -575,11 +531,11 @@
                                 <div className="text-center space-y-6">
                                     <div className="flex justify-between items-center print-hidden">
                                         <div className="w-8"></div>
-                                        <h3 className="text-lg font-black text-[#8B5A2B] uppercase tracking-widest">Relatório Final</h3>
+                                        <h3 className="text-lg font-black text-[#8B5A2B] uppercase">Relatório Final</h3>
                                         <button onClick={() => setShowClosureModal(false)} className="p-2 bg-gray-100 rounded-full active:scale-90"><Icon name="x" size={20}/></button>
                                     </div>
                                     <p className="font-black text-xl uppercase text-[#8B5A2B] tracking-widest">*** QUITUTES BALDIN ***</p>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest -mt-4">Relatório do dia: {new Date().toLocaleDateString()}</p>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest -mt-4">Relatório: {new Date().toLocaleDateString()}</p>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="bg-[#FCF8F3] p-5 rounded-3xl text-left border border-gray-100 shadow-inner">
                                             <p className="text-[8px] font-black text-gray-400 uppercase">Total Bruto</p>
@@ -591,7 +547,6 @@
                                         </div>
                                     </div>
                                     <div className="bg-white border rounded-[32px] p-6 space-y-3 text-left shadow-sm">
-                                        <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-1">Pagamentos</p>
                                         <div className="flex justify-between font-bold text-sm"><span>📱 PIX</span><span>R$ {closureSummary.PIX.toFixed(2)}</span></div>
                                         <div className="flex justify-between font-bold text-sm border-t pt-3"><span>💳 Cartão</span><span>R$ {closureSummary.Cartão.toFixed(2)}</span></div>
                                         <div className="flex justify-between font-bold text-sm border-t pt-3"><span>💵 Dinheiro</span><span>R$ {closureSummary.Dinheiro.toFixed(2)}</span></div>
@@ -607,15 +562,13 @@
                     )}
 
                     {showConfirmClose && (
-                        <div className="fixed inset-0 bg-red-950/95 backdrop-blur-xl z-[130] flex items-center justify-center p-6">
+                        <div className="fixed inset-0 bg-red-950/95 backdrop-blur-xl z-[130] flex items-center justify-center p-6 print-hidden">
                             <div className="bg-white w-full max-w-sm rounded-[48px] p-10 text-center shadow-2xl border-4 border-red-500">
                                 <Icon name="alert-triangle" size={48} className="text-red-600 mx-auto mb-6" />
-                                <h3 className="text-xl font-black text-red-600 uppercase mb-4 tracking-widest text-lg">Atenção Máxima!</h3>
-                                <p className="text-sm text-gray-500 mb-8 leading-relaxed">Deseja realmente <b>ENCERRAR</b> o caixa? O histórico será limpo permanentemente.</p>
-                                <div className="flex flex-col gap-3">
-                                    <button onClick={handleFecharCaixaFinal} className="w-full bg-red-600 text-white py-5 rounded-3xl font-black text-xs uppercase shadow-xl active:scale-95 transition-all">Sim, Limpar e Fechar</button>
-                                    <button onClick={() => setShowConfirmClose(false)} className="w-full text-gray-400 font-bold text-[10px] uppercase tracking-widest py-2">Cancelar</button>
-                                </div>
+                                <h3 className="text-xl font-black text-red-600 uppercase mb-4 tracking-widest text-lg">Atenção!</h3>
+                                <p className="text-sm text-gray-500 mb-8 leading-relaxed">Deseja realmente <b>ENCERRAR</b> o caixa? O faturamento será limpo.</p>
+                                <button onClick={handleFecharCaixaFinal} className="w-full bg-red-600 text-white py-5 rounded-3xl font-black text-xs uppercase shadow-xl active:scale-95 transition-all">Sim, Limpar e Fechar</button>
+                                <button onClick={() => setShowConfirmClose(false)} className="w-full text-gray-400 font-bold text-[10px] uppercase tracking-widest py-2">Cancelar</button>
                             </div>
                         </div>
                     )}
@@ -623,7 +576,7 @@
                     {showProductModal && (
                         <div className="fixed inset-0 bg-[#4A3728]/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 print-hidden">
                             <div className="bg-white w-full max-w-sm rounded-[48px] p-10 border-2 border-[#8B5A2B] shadow-2xl">
-                                <h3 className="text-xl font-black mb-8 text-[#8B5A2B] uppercase tracking-widest text-center">{editingProduct ? 'Editar' : 'Novo'} Quitute</h3>
+                                <h3 className="text-xl font-black mb-8 text-[#8B5A2B] uppercase text-center">{editingProduct ? 'Editar' : 'Novo'} Quitute</h3>
                                 <div className="space-y-4">
                                     <input type="text" placeholder="Nome" className="w-full bg-[#FCF8F3] rounded-2xl p-5 font-bold border-none outline-none focus:ring-2 focus:ring-[#8B5A2B]" value={productForm.nome} onChange={e=>setProductForm({...productForm, nome:e.target.value})} />
                                     <input type="number" placeholder="Preço" className="w-full bg-[#FCF8F3] rounded-2xl p-5 font-bold border-none outline-none focus:ring-2 focus:ring-[#8B5A2B]" value={productForm.preco} onChange={e=>setProductForm({...productForm, preco:e.target.value})} />
